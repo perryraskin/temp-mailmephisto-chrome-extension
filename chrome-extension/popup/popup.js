@@ -10,7 +10,10 @@ const refreshBtn = document.getElementById('refreshBtn');
 const emailList = document.getElementById('emailList');
 const emailCount = document.getElementById('emailCount');
 const statusMessage = document.getElementById('statusMessage');
-const openWebBtn = document.getElementById('openWebBtn');
+const listView = document.getElementById('listView');
+const detailView = document.getElementById('detailView');
+const backBtn = document.getElementById('backBtn');
+const emailDetail = document.getElementById('emailDetail');
 
 // State
 let currentSession = null;
@@ -25,7 +28,7 @@ async function init() {
   copyBtn.addEventListener('click', copyEmail);
   newEmailBtn.addEventListener('click', generateNewEmail);
   refreshBtn.addEventListener('click', refreshEmails);
-  openWebBtn.addEventListener('click', openFullApp);
+  backBtn.addEventListener('click', showListView);
 }
 
 // Load current email address
@@ -182,16 +185,59 @@ function renderEmailList() {
   });
 }
 
-// Open email detail (in new tab for now)
-function openEmailDetail(emailId) {
-  // For simplicity, open the full web app
-  // You could implement a detailed view in the popup if desired
-  chrome.tabs.create({ url: 'https://mephistomail.site/' });
+// Open email detail within popup
+async function openEmailDetail(emailId) {
+  try {
+    // Show loading state
+    detailView.classList.remove('hidden');
+    listView.classList.add('hidden');
+    emailDetail.innerHTML = '<div class="empty-state"><p>Loading email...</p></div>';
+
+    // Fetch email detail
+    const email = await getMessageDetail(emailId);
+
+    if (!email) {
+      emailDetail.innerHTML = '<div class="empty-state"><p>Failed to load email</p></div>';
+      return;
+    }
+
+    // Format date
+    const date = new Date(email.createdAt);
+    const formattedDate = date.toLocaleString();
+
+    // Render email detail
+    emailDetail.innerHTML = `
+      <div class="detail-subject">${escapeHtml(email.subject || '(No subject)')}</div>
+
+      <div class="detail-section">
+        <div class="detail-label">From</div>
+        <div class="detail-value monospace">${escapeHtml(email.from.address)}</div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-label">Date</div>
+        <div class="detail-value">${formattedDate}</div>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-label">Category</div>
+        <span class="email-category category-${email.category.toLowerCase()}">${email.category}</span>
+      </div>
+
+      <div class="detail-section">
+        <div class="detail-label">Message</div>
+        <div class="detail-body">${escapeHtml(email.text || email.html || '(Empty message)')}</div>
+      </div>
+    `;
+  } catch (error) {
+    emailDetail.innerHTML = '<div class="empty-state"><p>Error loading email</p></div>';
+  }
 }
 
-// Open full web app
-function openFullApp() {
-  chrome.tabs.create({ url: 'https://mephistomail.site/' });
+// Show list view
+function showListView() {
+  detailView.classList.add('hidden');
+  listView.classList.remove('hidden');
 }
 
 // Show status message
